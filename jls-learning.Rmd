@@ -8,24 +8,169 @@ editor_options:
 
 ```{r}
 library(rethinking)
+library(tidyverse)
 ```
 
+Bayesian data analysis
 
+- For each possible explanation of the sample.
+  - For each possible proportion of water on the globe.
+  - It's more like "From each..."
+- Count all the ways the sample could happen.
+  - Count all the ways the sample of tosses could happen
+- Explanations with more ways to produce the sample are more plausible.
+  - Proportions with more ways to produce the sample are more plausible.
 
 ```{r}
 ## R code 2.1
 ways <- c( 0 , 3 , 8 , 9 , 0 )
 ways/sum(ways)
+```
 
+
+```{r}
+tibble(ways) |> 
+  mutate(prop_ways = ways / sum(ways))
+```
+
+```{r}
+conjecture <- 
+  list(c("L", "L", "L", "L"),
+       c("W", "L", "L", "L"),
+       c("W", "W", "L", "L"),
+       c("W", "W", "W", "L"),
+       c("W", "W", "W", "W"))
+
+conjecture
+```
+
+```{r paged.print=FALSE}
+conjecture |> 
+  tibble() |> 
+  mutate(conj_str = map_chr(conjecture, paste0, collapse = ",")) |> 
+  bind_cols(ways_wlw = ways) %>% 
+  bind_cols(., ways_new_w = c(0,1,2,3,4)) %>% 
+  mutate(new_count = ways_wlw * ways_new_w) %>% 
+  bind_cols(., new_factory_counts = c(0,3,2,1,0)) %>% 
+  mutate(new_counts = new_count * new_factory_counts)
+  # expand_grid(conj_str, conj_str, .name_repair = "unique") |> 
+  # _
+  # sample(size = 3, replace = T)
+```
+
+
+```{r paged.print=FALSE}
+conjecture |> 
+  tibble() |> 
+  mutate(conj_str = map_chr(conjecture, paste0, collapse = ",")) |> 
+  bind_cols(ways_wlw = ways) %>% 
+  mutate(plusibility = ways/sum(ways))  
+```
+
+Number of waters = 6
+Total tosses = 9
+Probability of water 0.5
+Result = prob of seeing that data
+
+```{r}
 ## R code 2.2
-dbinom( 6 , size=9 , prob=0.5 )
+dbinom(6 , size=9 , prob=0.5 )
+pbinom()
+# dbinom(1:9 , size=9 , prob=0.5 )  # all possible values
+```
 
+```{r}
+prob <- 0.5
+waters <- 6
+n <- 9
+lands <- n - waters
+
+normaliser <- factorial(n) / (factorial(waters) * factorial(lands))
+
+prob^waters * (1 - prob)^lands * normaliser
+```
+
+```{r}
+dbinom(4 , size=9 , prob=seq(0,1,0.2))
+```
+
+
+```{r}
+calc_likelihood <- function(n_sucesses, n_trials, given_conjecture_p) {
+  normaliser <- factorial(n_trials) /
+                    (factorial(n_sucesses) * factorial(n_trials - n_sucesses))
+  
+  numer <- given_conjecture_p^n_sucesses * (1 - given_conjecture_p)^(n_trials - n_sucesses)
+  numer * normaliser
+}
+
+calc_likelihood(n_sucesses = 6, n_trials = 9, given_conjecture_p = 0.5)
+```
+
+
+```{r}
+tibble(toss = c("w", "l", "w", "w", "w", "l", "w", "l", "w")) %>% 
+       # n_trials  = 1:9,
+       # n_success = cumsum(toss == "w")) %>% 
+  mutate(
+    n_trials = row_number(),
+    n_success = cumsum(toss == "w")
+  ) %>% 
+  mutate(probs_p = list(seq(from = 0, to = 1, length.out = 50))) %>% 
+  rowwise() %>% 
+  mutate(likelihood = list(calc_likelihood(n_sucesses = n_success,
+                                           n_trials  = n_trials,
+                                           given_conjecture_p = probs_p))) %>% 
+  mutate(likelihood = list(likelihood / sum(likelihood))) %>% 
+  unnest_longer(c(probs_p, likelihood)) %>% 
+  ggplot(aes(x = probs_p)) +
+  geom_line(aes(y = likelihood)) +
+  scale_x_continuous("proportion water", breaks = c(0, .5, 1)) +
+  # scale_y_continuous("plausibility", breaks = NULL) +
+  theme(panel.grid = element_blank()) +
+  facet_wrap(facets = vars(n_trials))
+```
+
+
+```{r paged.print=FALSE}
+tibble(toss = c("w", "l", "w", "w", "w", "l", "w", "l", "w")) %>% 
+       # n_trials  = 1:9,
+       # n_success = cumsum(toss == "w")) %>% 
+  mutate(
+    n_trials = row_number(),
+    n_success = cumsum(toss == "w")
+  ) %>% 
+  mutate(conjecture_p = list(seq(from = 0, to = 1, length.out = 50))) %>% 
+  rowwise() %>% 
+  unnest_longer(conjecture_p) %>%
+  # slice(135) %>% 
+  mutate(pw = conjecture_p^n_success,
+         notp_l = (1 - conjecture_p)^(n_trials-n_success),
+         norm = factorial(n_trials)/(factorial(n_success)*factorial(n_trials-n_success))) %>% 
+  mutate(likelihood = pw*notp_l*norm) %>% 
+  # select(n_trials, norm) %>% 
+  # ggplot(aes(x = n_trials, y = norm)) + 
+  # geom_line() + 
+  # geom_point()
+  # mutate(likelihood = likelihood / sum(likelihood), .by = n_trials) %>%
+  mutate(across(c(pw, notp_l, norm, likelihood), function(x) x/sum(x)), .by = n_trials) %>% 
+  ggplot(aes(x = conjecture_p)) + 
+  geom_line(aes(y = likelihood)) + 
+  geom_line(aes(y = pw), color = "red") + 
+  geom_line(aes(y = notp_l), color = "blue") +
+  facet_wrap(facets = vars(n_trials))
+```
+
+
+```{r}
 ## R code 2.3
 # define grid
 p_grid <- seq( from=0 , to=1 , length.out=20 )
 
 # define prior
-prior <- rep( 1 , 20 )
+# prior <- rep( 1 , 20 )
+# prior <- ifelse( p_grid < 0.5 , 0 , 1 )
+prior <- exp( -5*abs( p_grid - 0.5 ) )
 
 # compute likelihood at each value in grid
 likelihood <- dbinom( 6 , size=9 , prob=p_grid )
@@ -35,18 +180,31 @@ unstd.posterior <- likelihood * prior
 
 # standardize the posterior, so it sums to 1
 posterior <- unstd.posterior / sum(unstd.posterior)
+```
 
-## R code 2.4
+```{r}
 plot( p_grid , posterior , type="b" ,
     xlab="probability of water" , ylab="posterior probability" )
 mtext( "20 points" )
+```
 
-## R code 2.5
-prior <- ifelse( p_grid < 0.5 , 0 , 1 )
-prior <- exp( -5*abs( p_grid - 0.5 ) )
 
+```{r}
+grid_size <- 100
+tibble(
+  p_grid = seq(0, 1, length.out = grid_size),
+  prior = rep(1, grid_size)
+) %>% 
+  mutate(likelihood = dbinom(6, size = 9, prob = p_grid),
+         unstand_post = likelihood * prior) %>% 
+  mutate(posterior = unstand_post / sum(unstand_post)) %>% 
+  ggplot(aes(x = p_grid, y = posterior)) + 
+  geom_line() + 
+  geom_point()
+```
+
+```{r paged.print=FALSE}
 ## R code 2.6
-library(rethinking)
 globe.qa <- quap(
     alist(
         W ~ dbinom( W+L ,p) ,  # binomial likelihood
@@ -54,9 +212,13 @@ globe.qa <- quap(
     ) ,
     data=list(W=6,L=3) )
 
+# globe.qa
+
 # display summary of quadratic approximation
 precis( globe.qa )
+```
 
+```{r}
 ## R code 2.7
 # analytical calculation
 W <- 6
@@ -64,7 +226,10 @@ L <- 3
 curve( dbeta( x , W+1 , L+1 ) , from=0 , to=1 )
 # quadratic approximation
 curve( dnorm( x , 0.67 , 0.16 ) , lty=2 , add=TRUE )
+```
 
+
+```{r}
 ## R code 2.8
 n_samples <- 1000
 p <- rep( NA , n_samples )
@@ -83,6 +248,14 @@ for ( i in 2:n_samples ) {
 ## R code 2.9
 dens( p , xlim=c(0,1) )
 curve( dbeta( x , W+1 , L+1 ) , lty=2 , add=TRUE )
+
+```
+
+
+```{r}
+
+
+
 
 ## R code 3.1
 Pr_Positive_Vampire <- 0.95
