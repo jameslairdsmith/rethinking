@@ -7,6 +7,7 @@ editor_options:
 
 ```{r}
 library(tidyverse)
+library(rethinking)
 ```
 
 
@@ -39,7 +40,14 @@ tibble(p_grid, posterior) %>%
 ```{r}
 samples <- sample(p_grid, prob = posterior, size = 1e4, replace = TRUE)
 
-samples
+# samples
+# plot(samples)
+# dens(samples)
+samples %>% 
+  as_tibble_col("prop_water") %>% 
+  rowid_to_column("sample_number") %>% 
+  ggplot(aes(y = prop_water, x = sample_number)) +
+  geom_hex(alpha = 0.8)
 ```
 
 
