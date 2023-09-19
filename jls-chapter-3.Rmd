@@ -160,7 +160,7 @@ table(dummy_w)/1e5
 
 ```{r}
 ## R code 3.24
-dummy_w <- rbinom(1e5, size=9, prob=0.7)
+dummy_w <- rbinom(1e5, size=9, prob=0.9)
 simplehist(dummy_w, xlab="dummy water count")
 ```
 
