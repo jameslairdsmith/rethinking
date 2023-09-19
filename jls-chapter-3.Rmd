@@ -50,34 +50,24 @@ samples %>%
   geom_hex(alpha = 0.8)
 ```
 
-
 ```{r}
-
 ## R code 3.3
-
 ## R code 3.4
 plot( samples )
-
 ## R code 3.5
 library(rethinking)
 dens( samples )
-
 ## R code 3.6
 # add up posterior probability where p < 0.5
 sum( posterior[ p_grid < 0.5 ] )
-
 ## R code 3.7
 sum( samples < 0.5 ) / 1e4
-
 ## R code 3.8
 sum( samples > 0.5 & samples < 0.75 ) / 1e4
-
 ## R code 3.9
 quantile( samples , 0.8 )
-
 ## R code 3.10
 quantile( samples , c( 0.1 , 0.9 ) )
-
 ## R code 3.11
 p_grid <- seq( from=0 , to=1 , length.out=1000 )
 prior <- rep(1,1000)
@@ -85,18 +75,56 @@ likelihood <- dbinom( 3 , size=3 , prob=p_grid )
 posterior <- likelihood * prior
 posterior <- posterior / sum(posterior)
 samples <- sample( p_grid , size=1e4 , replace=TRUE , prob=posterior )
-
 ## R code 3.12
 PI( samples , prob=0.5 )
-
 ## R code 3.13
 HPDI( samples , prob=0.5 )
+```
 
-## R code 3.14
+```{r}
+tibble(p_grid, posterior) %>% 
+  rowid_to_column() %>% 
+  filter(max(posterior) == posterior)
+```
+
+
+```{r}
+posterior
+which.max(posterior)
 p_grid[ which.max(posterior) ]
+```
 
+```{r}
 ## R code 3.15
 chainmode( samples , adj=0.01 )
+```
+
+```{r}
+choice <- 0.5
+# abs(choice - p_grid)
+tibble(p_grid, posterior, choice) %>% 
+  mutate(part_loss = abs(choice - p_grid) * posterior) %>% 
+  summarise(loss = sum(part_loss)) %>%
+  {.}
+  
+```
+
+```{r}
+tibble(p_grid, posterior) %>% 
+  expand_grid(choice = p_grid) %>%
+  mutate(part_loss = posterior * abs(choice - p_grid)) %>% 
+  summarise(loss = sum(part_loss), .by = c(choice)) %>% 
+  filter(loss == min(loss)) %>% 
+  {.}
+```
+
+```{r}
+median(samples)
+```
+
+
+```{r}
+## R code 3.14
 
 ## R code 3.16
 mean( samples )
@@ -110,7 +138,9 @@ loss <- sapply( p_grid , function(d) sum( posterior*abs( d - p_grid ) ) )
 
 ## R code 3.19
 p_grid[ which.min(loss) ]
+```
 
+```{r}
 ## R code 3.20
 dbinom( 0:2 , size=2 , prob=0.7 )
 
@@ -119,14 +149,24 @@ rbinom( 1 , size=2 , prob=0.7 )
 
 ## R code 3.22
 rbinom( 10 , size=2 , prob=0.7 )
+```
 
+```{r}
 ## R code 3.23
 dummy_w <- rbinom( 1e5 , size=2 , prob=0.7 )
 table(dummy_w)/1e5
+```
 
+
+```{r}
 ## R code 3.24
-dummy_w <- rbinom( 1e5 , size=9 , prob=0.7 )
-simplehist( dummy_w , xlab="dummy water count" )
+dummy_w <- rbinom(1e5, size=9, prob=0.7)
+simplehist(dummy_w, xlab="dummy water count")
+```
+
+
+```{r}
+
 
 ## R code 3.25
 w <- rbinom( 1e4 , size=9 , prob=0.6 )
