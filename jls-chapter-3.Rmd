@@ -164,15 +164,23 @@ dummy_w <- rbinom(1e5, size=9, prob=0.9)
 simplehist(dummy_w, xlab="dummy water count")
 ```
 
-
 ```{r}
-
-
 ## R code 3.25
 w <- rbinom( 1e4 , size=9 , prob=0.6 )
 
 ## R code 3.26
-w <- rbinom( 1e4 , size=9 , prob=samples )
+w <- rbinom(1e4, size=9, prob = samples)
+# R's recycling rules mean that for each element in samples, 
+w
+
+simplehist(w, xlab="dummy water count")
+# length(samples)
+```
+
+
+```{r}
+
+
 
 ## R code 3.27
 p_grid <- seq( from=0 , to=1 , length.out=1000 )
